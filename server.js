@@ -33,6 +33,7 @@ connection.connect((err) => {
   }
 });
 
+
 // // Crear la tabla en MySQL si no existe
 // connection.query(`
 //   CREATE TABLE IF NOT EXISTS datos_formulario (
@@ -49,6 +50,7 @@ connection.connect((err) => {
 //   }
 // });
 
+
 // Obtener las credenciales desde variables de entorno
 const emailUsuario = process.env.EMAIL_USER_1;
 const contraseñaUsuario = process.env.EMAIL_PASS_1;
@@ -61,55 +63,64 @@ app.set('view engine', 'ejs');
 // Ruta para procesar el envío de correos
 app.post('/enviar-correo', async (req, res) => {
   try {
-    const { nombre, telefono, email, comentario } = req.body;  
-    // Configurar el transporte de nodemailer
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      auth: {
-        user: emailUsuario,
-        pass: contraseñaUsuario,
-      },
-    });
+    const { nombre, telefono, email, comentario } = req.body;
 
-    // Generar el enlace de WhatsApp
-    const numeroWhatsApp = encodeURIComponent(telefono);
-    const enlaceWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent("Hola, veo que estás interesado en...")}`;
+    // Verificar si el número tiene 10 dígitos y comienza con "09"
+    if (telefono.length === 10 && telefono.startsWith("09")) {
+      // Transformar "09" a "+593" y utilizar el resto del número
+      const numeroWhatsApp = "+593" + telefono.substring(1);
 
-    // Renderizar la plantilla EJS
-    const templatePath = path.join(__dirname, 'views/correo-template.ejs');
-    const htmlTemplate = await ejs.renderFile(templatePath, { nombre, telefono, email, comentario, enlaceWhatsApp });
+      // Construye el enlace de WhatsApp
+      const enlaceWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent("Hola, veo que estás interesado en...")}`;
+      
+      //Renderizo la plantilla .ejs      
+      const templatePath = path.join(__dirname, 'views/correo-template.ejs');
+      const htmlTemplate = await ejs.renderFile(templatePath, { nombre, telefono, email, comentario, enlaceWhatsApp });
 
-    // Detalles del correo electrónico con la plantilla HTML renderizada
-    const mailOptions = {
-      from: `"Nuevo Cliente" <${email}>`,
-      to: destinatario,
-      subject: "Nuevo Cliente desde la Web",
-      html: htmlTemplate,
-    };
+      const mailOptions = {
+        from: `"Nuevo Cliente" <${email}>`,
+        to: destinatario,
+        subject: "Nuevo Cliente desde la Web",
+        html: htmlTemplate,
+      };
 
-    // Enviar el correo electrónico
-    const info = await transporter.sendMail(mailOptions);
+      // Configuración del transporte de nodemailer
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: emailUsuario,
+          pass: contraseñaUsuario,
+        },
+      });
 
-    // Insertar datos en la tabla de formularios
-    connection.query(
-      'INSERT INTO datos_formulario (nombre, telefono, email, comentario) VALUES (?, ?, ?, ?)',
-      [nombre, telefono, email, comentario],
-      (err, results) => {
-        if (err) {
-          console.error('Error al insertar datos en MySQL:', err);
-          res.status(500).json({ mensaje: 'Error al almacenar los datos en la base de datos' });
-        } else {
-          console.log('Datos almacenados en MySQL con éxito:', results);
-          res.status(200).json({ mensaje: 'Correo enviado y datos almacenados con éxito' });
+      // Envia el correo electrónico
+      const info = await transporter.sendMail(mailOptions);
+
+      // Insertar datos en la tabla de formularios
+      connection.query(
+        'INSERT INTO datos_formulario (nombre, telefono, email, comentario) VALUES (?, ?, ?, ?)',
+        [nombre, telefono, email, comentario],
+        (err, results) => {
+          if (err) {
+            console.error('Error al insertar datos en MySQL:', err);
+            res.status(500).json({ mensaje: 'Error al almacenar los datos en la base de datos' });
+          } else {
+            console.log('Datos almacenados en MySQL con éxito:', results);
+            res.status(200).json({ mensaje: 'Correo enviado y datos almacenados con éxito' });
+          }
         }
-      }
-    );
-
+      );
+    } else {
+      // No es un número de celular válido, puedes realizar otra acción o simplemente no enviar el correo
+      console.log("Número de teléfono no válido");
+      res.status(400).json({ mensaje: 'Número de teléfono no válido' });
+    }
   } catch (error) {
+    console.error("Error al enviar el correo:", error);
     res.status(500).json({ mensaje: "Error al enviar el correo" });
   }
 });
+
 
 app.listen(PORT, () => {
   console.log(`Backend iniciado en http://localhost:${PORT}`);
