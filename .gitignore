@@ -1,0 +1,12 @@
+node_modules/
+
+# Creado por npm, para ignorar las dependencias en proyectos Node.js
+package-lock.json
+
+# Variables de entorno
+.env
+
+# Archivos de configuración
+*.iml
+*.vscode/
+.idea/

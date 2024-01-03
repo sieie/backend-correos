@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Correo de Contacto</title>
+</head>
+
+<body>
+    <div style="@import url(https://fonts.googleapis.com/css?family=Poppins:300,400,500,700|Open+Sans:300,400,500,600,700);
+    font-family: 'Poppins', sans-serif;">
+        <table style="margin:0 auto;">
+            <tbody>
+                <!-- IMAGEN PUERTTO -->
+                <tr style="text-align: center;">
+                    <td><img src="assets/Logo-Ecovitali-Blanco.svg"></td>
+                </tr>
+            </tbody>
+        </table>
+        <table style="margin:0 auto; width: 60%;">
+            <tbody>
+                <tr>
+                    <td>
+                        <p style="font-size: 15px;">¡Hola, <span style="font-weight: 600;">Operador</span>!</p>
+                        <p style="font-size: 15px;">
+                            Un cliente ha ingresado sus datos desde nuestra web. Aquí están los detalles, contáctalo lo antes posible!!:
+                            <br>Nombre: <b><%= nombre %></b>
+                            <br>Teléfono: <%= telefono %>
+                            <br>Correo Electrónico: <%= email %>
+                            <br>Comentario: <%= comentario %>
+                            <br>
+                            <br>
+                            <br>Puedes contactarlo por correo electrónico o por WhatsApp haciendo click en el siguiente botón.
+                        </p>
+                        <div style="margin-top:10%;text-align: center; margin-bottom:30%;">
+                            <a href="<%= enlaceWhatsApp %>" style="width: 20%;padding: 20px;background: #86AE51;color: #fff;border: 0; cursor:pointer;
+                            border-radius: 6px; text-align: center; text-decoration: none;">Mensaje Directo de WhatsApp</a>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
