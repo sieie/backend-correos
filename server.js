@@ -98,8 +98,8 @@ app.post('/enviar-correo', async (req, res) => {
 
       // Insertar datos en la tabla de formularios
       connection.query(
-        'INSERT INTO datos_formulario (nombre, telefono, email, comentario) VALUES (?, ?, ?, ?)',
-        [nombre, telefono, email, comentario],
+        'INSERT INTO datos_formulario (nombre, telefono, email, comentario, correo_destino) VALUES (?, ?, ?, ?, ?)',
+        [nombre, telefono, email, comentario, destinatario],
         (err, results) => {
           if (err) {
             console.error('Error al insertar datos en MySQL:', err);
