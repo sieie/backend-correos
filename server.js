@@ -35,32 +35,66 @@ const contraseñaUsuario = process.env.EMAIL_PASS_1;
 const destinatario = process.env.DESTINATARIO_EMAIL;
 const cc = process.env.CORREOCC;
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const storage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    cb(null, './CVs'); // Actualiza la ruta a la carpeta "CVs"
+  },
+  filename: function(req, file, cb) {
+    cb(null, file.originalname);
+  },
+});
+
+const upload = multer({ storage });
+
 
 const enviarCorreoYGuardarDatos = async (req, res, template, correoCC) => {
   try {
-    console.log(req.body)
-    
     const { nombre, telefono, email, comentario, divisionEmpresarial, tema, tipo, divisionSeleccionada, ciudad, cv } = req.body;
 
+    // Modificación de strings para cada endpoint
+    const config = {
+      '/enviar-correo/divisiones-empresariales': {
+        from:`"Nuevo Cliente" <${email}>`,
+        subject: "Nuevo Cliente desde la Web",
+      },
+      '/enviar-correo/at-cliente': {
+        from: `"Nuevo Cliente" <${email}>`,
+        subject: "Nuevo Cliente desde la Web",
+      },
+      '/enviar-correo/at-proveedor': {
+        from: `"Nuevo Cliente" <${email}>`,
+        subject: "Nuevo Cliente desde la Web",
+      },
+      '/enviar-correo/responsabilidad-social': {
+        from: `"Nuevo Cliente" <${email}>`,
+        subject: "Nuevo Cliente desde la Web",
+      },
+      '/enviar-correo/trabaja-nosotros': {
+        from: `"Nuevo Empleado" <${email}>`,
+        subject: "Nuevo Empleado desde la Web",
+      },
+    };
+
+    // Valida y suprime el número de celular para redirección
     if (telefono.length === 10 && telefono.startsWith("09")) {
       const numeroWhatsApp = "+593" + telefono.substring(1);
       const enlaceWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent("Hola, veo que estás interesado en...")}`;
 
       const templatePath = path.join(__dirname, 'views', template);
-      const htmlTemplate = await ejs.renderFile(templatePath, { nombre, telefono, email, comentario, divisionEmpresarial, enlaceWhatsApp, tema, tipo, divisionSeleccionada, ciudad, cv });
+      const htmlTemplate = await ejs.renderFile(templatePath, { nombre, telefono, email, comentario, divisionEmpresarial, enlaceWhatsApp, tema, tipo, divisionSeleccionada, ciudad });
 
+      // Pasa valores de config para cada endpoint
       const mailOptions = {
-        from: `"Nuevo Cliente" <${email}>`,
+        from: config[req.url].from,
         to: destinatario,
         cc: correoCC,
-        subject: "Nuevo Cliente desde la Web",
+        subject: config[req.url].subject,
         html: htmlTemplate,
         attachments: [
           {
             filename: cv.originalname,
             content: cv.buffer,
+            encoding: 'base64', // Añade esta línea para especificar la codificación
           },
         ],
       };
@@ -92,7 +126,7 @@ const enviarCorreoYGuardarDatos = async (req, res, template, correoCC) => {
         values = [nombre, telefono, email, comentario];
       } else if (req.url === '/enviar-correo/trabaja-nosotros') {
         query = 'INSERT INTO formulario_trabaja_nosotros (nombre, ciudad, telefono, correo, comentario, divisionSeleccionada, cv) VALUES (?, ?, ?, ?, ?, ?, ?)';
-        values = [nombre, ciudad, telefono, email, comentario, divisionSeleccionada, cv];
+        values = [nombre, ciudad, telefono, email, comentario, divisionSeleccionada, cv.originalname];
       }
 
       connection.query(query, values, (err, results) => {
@@ -114,6 +148,7 @@ const enviarCorreoYGuardarDatos = async (req, res, template, correoCC) => {
     res.status(500).json({ mensaje: "Error al enviar el correo" });
   }
 };
+
 
 app.post('/enviar-correo/divisiones-empresariales', async (req, res) => {
   await enviarCorreoYGuardarDatos(req, res, 'correo-divisiones.ejs');
