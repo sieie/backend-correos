@@ -7,6 +7,7 @@ const ejs = require('ejs');
 const path = require('path');
 const mysql = require('mysql2');
 const multer = require('multer');
+const sanitize = require('sanitize-filename');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,16 +37,21 @@ const destinatario = process.env.DESTINATARIO_EMAIL;
 const cc = process.env.CORREOCC;
 
 const storage = multer.diskStorage({
-  destination: function(req, file, cb) {
-    cb(null, './CVs'); // Actualiza la ruta a la carpeta "CVs"
+  filename: function (req, file, cb) {
+    const originalName = file.originalname;
+    const sanitizedFileName = sanitize(originalName);
+
+    // Utiliza un timestamp único como parte del nombre del archivo para evitar conflictos
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const safeFileName = sanitizedFileName.replace(/\s/g, '_'); // Reemplaza espacios con guiones bajos
+    cb(null, safeFileName + '-' + uniqueSuffix);
   },
-  filename: function(req, file, cb) {
-    cb(null, file.originalname);
+  destination: function (req, file, cb) {
+    cb(null, 'Cvs/');
   },
 });
 
-const upload = multer({ storage });
-
+const upload = multer({storage})
 
 const enviarCorreoYGuardarDatos = async (req, res, template, correoCC) => {
   try {
@@ -81,7 +87,7 @@ const enviarCorreoYGuardarDatos = async (req, res, template, correoCC) => {
       const enlaceWhatsApp = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent("Hola, veo que estás interesado en...")}`;
 
       const templatePath = path.join(__dirname, 'views', template);
-      const htmlTemplate = await ejs.renderFile(templatePath, { nombre, telefono, email, comentario, divisionEmpresarial, enlaceWhatsApp, tema, tipo, divisionSeleccionada, ciudad });
+      const htmlTemplate = await ejs.renderFile(templatePath, { nombre, telefono, email, comentario, divisionEmpresarial, enlaceWhatsApp, tema, tipo, divisionSeleccionada, ciudad, cv });
 
       // Pasa valores de config para cada endpoint
       const mailOptions = {
@@ -92,9 +98,9 @@ const enviarCorreoYGuardarDatos = async (req, res, template, correoCC) => {
         html: htmlTemplate,
         attachments: [
           {
-            filename: cv.originalname,
-            content: cv.buffer,
-            encoding: 'base64', // Añade esta línea para especificar la codificación
+            filename: (req.file && req.file.originalname) || '',  // Verifica si req.file está definido antes de acceder a originalname
+            path: (req.file && path.join(__dirname, 'CVs', req.file.filename)) || '',  // Verifica si req.file está definido antes de acceder a filename
+            cid: 'cv',
           },
         ],
       };
@@ -112,21 +118,34 @@ const enviarCorreoYGuardarDatos = async (req, res, template, correoCC) => {
       let query = '';
       let values = [];
 
-      if (req.url === '/enviar-correo/divisiones-empresariales') {
-        query = 'INSERT INTO formulario_divisiones_empresariales (nombre, telefono, email, comentario, correo_destino, division_empresarial) VALUES (?, ?, ?, ?, ?, ?)';
-        values = [nombre, telefono, email, comentario, destinatario, divisionEmpresarial];
-      } else if (req.url === '/enviar-correo/at-cliente') {
-        query = 'INSERT INTO formulario_atencion_clientes (nombre, tema_a_consultar, correo, telefono, comentario) VALUES (?, ?, ?, ?, ?)';
-        values = [nombre, tema, email, telefono, comentario];
-      } else if (req.url === '/enviar-correo/at-proveedor') {
-        query = 'INSERT INTO formulario_atencion_proveedores (nombre, tipo_categoria, correo, telefono, comentario) VALUES (?, ?, ?, ?, ?)';
-        values = [nombre, tipo, email, telefono, comentario];
-      } else if (req.url === '/enviar-correo/responsabilidad-social') {
-        query = 'INSERT INTO formulario_responsabilidad_social (nombre, telefono, correo, comentario) VALUES (?, ?, ?, ?)';
-        values = [nombre, telefono, email, comentario];
-      } else if (req.url === '/enviar-correo/trabaja-nosotros') {
-        query = 'INSERT INTO formulario_trabaja_nosotros (nombre, ciudad, telefono, correo, comentario, divisionSeleccionada, cv) VALUES (?, ?, ?, ?, ?, ?, ?)';
-        values = [nombre, ciudad, telefono, email, comentario, divisionSeleccionada, cv.originalname];
+      switch (req.url) {
+        case '/enviar-correo/divisiones-empresariales':
+          query = 'INSERT INTO formulario_divisiones_empresariales (nombre, telefono, email, comentario, correo_destino, division_empresarial) VALUES (?, ?, ?, ?, ?, ?)';
+          values = [nombre, telefono, email, comentario, destinatario, divisionEmpresarial];
+          break;
+
+        case '/enviar-correo/at-cliente':
+          query = 'INSERT INTO formulario_atencion_clientes (nombre, tema_a_consultar, correo, telefono, comentario) VALUES (?, ?, ?, ?, ?)';
+          values = [nombre, tema, email, telefono, comentario];
+          break;
+
+        case '/enviar-correo/at-proveedor':
+          query = 'INSERT INTO formulario_atencion_proveedores (nombre, tipo_categoria, correo, telefono, comentario) VALUES (?, ?, ?, ?, ?)';
+          values = [nombre, tipo, email, telefono, comentario];
+          break;
+
+        case '/enviar-correo/responsabilidad-social':
+          query = 'INSERT INTO formulario_responsabilidad_social (nombre, telefono, correo, comentario) VALUES (?, ?, ?, ?)';
+          values = [nombre, telefono, email, comentario];
+          break;
+
+        case '/enviar-correo/trabaja-nosotros':
+          query = 'INSERT INTO formulario_trabaja_nosotros (nombre, ciudad, telefono, correo, comentario, divisionSeleccionada, cv) VALUES (?, ?, ?, ?, ?, ?, ?)';
+          values = [nombre, ciudad, telefono, email, comentario, divisionSeleccionada, cv];
+          break;
+
+        default:
+          break;
       }
 
       connection.query(query, values, (err, results) => {
