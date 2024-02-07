@@ -10,3 +10,6 @@ package-lock.json
 *.iml
 *.vscode/
 .idea/
+
+# Carpeta donde se almacenan los documentos enviados por el formulario.
+CVs/

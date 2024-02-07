@@ -7,7 +7,6 @@ const ejs = require('ejs');
 const path = require('path');
 const mysql = require('mysql2');
 const multer = require('multer');
-const sanitize = require('sanitize-filename');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -37,21 +36,15 @@ const destinatario = process.env.DESTINATARIO_EMAIL;
 const cc = process.env.CORREOCC;
 
 const storage = multer.diskStorage({
-  filename: function (req, file, cb) {
-    const originalName = file.originalname;
-    const sanitizedFileName = sanitize(originalName);
-
-    // Utiliza un timestamp único como parte del nombre del archivo para evitar conflictos
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const safeFileName = sanitizedFileName.replace(/\s/g, '_'); // Reemplaza espacios con guiones bajos
-    cb(null, safeFileName + '-' + uniqueSuffix);
+  filename: function (res, file, cb) {
+    cb(null, file.originalname);
   },
   destination: function (req, file, cb) {
     cb(null, 'Cvs/');
   },
 });
 
-const upload = multer({storage})
+const upload = multer({ storage });
 
 const enviarCorreoYGuardarDatos = async (req, res, template, correoCC) => {
   try {
@@ -60,7 +53,7 @@ const enviarCorreoYGuardarDatos = async (req, res, template, correoCC) => {
     // Modificación de strings para cada endpoint
     const config = {
       '/enviar-correo/divisiones-empresariales': {
-        from:`"Nuevo Cliente" <${email}>`,
+        from: `"Nuevo Cliente" <${email}>`,
         subject: "Nuevo Cliente desde la Web",
       },
       '/enviar-correo/at-cliente': {
@@ -96,14 +89,18 @@ const enviarCorreoYGuardarDatos = async (req, res, template, correoCC) => {
         cc: correoCC,
         subject: config[req.url].subject,
         html: htmlTemplate,
-        attachments: [
+      };
+
+      // Adjunta el archivo solo si es el endpoint '/enviar-correo/trabaja-nosotros'
+      if (req.url === '/enviar-correo/trabaja-nosotros' && req.file) {
+        mailOptions.attachments = [
           {
-            filename: (req.file && req.file.originalname) || '',  // Verifica si req.file está definido antes de acceder a originalname
-            path: (req.file && path.join(__dirname, 'CVs', req.file.filename)) || '',  // Verifica si req.file está definido antes de acceder a filename
+            filename: req.file.originalname,
+            path: path.join(__dirname, 'Cvs', req.file.filename),
             cid: 'cv',
           },
-        ],
-      };
+        ];
+      }
 
       const transporter = nodemailer.createTransport({
         service: "gmail",
@@ -167,7 +164,6 @@ const enviarCorreoYGuardarDatos = async (req, res, template, correoCC) => {
     res.status(500).json({ mensaje: "Error al enviar el correo" });
   }
 };
-
 
 app.post('/enviar-correo/divisiones-empresariales', async (req, res) => {
   await enviarCorreoYGuardarDatos(req, res, 'correo-divisiones.ejs');
