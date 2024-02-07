@@ -11,5 +11,6 @@ package-lock.json
 *.vscode/
 .idea/
 
+notas.txt
 # Carpeta donde se almacenan los documentos enviados por el formulario.
 CVs/
